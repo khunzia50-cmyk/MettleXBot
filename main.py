@@ -5,12 +5,11 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# ดึงค่า Environment Variables
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 PORT = int(os.getenv("PORT", 10000))
 
-# 1. ระบบ HTTP Server จิ๋วสำหรับรักษาสถานะบน Render (Health Check)
+# 1. HTTP Server สำหรับ Health Check บน Render
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -25,15 +24,17 @@ def run_http_server():
     httpd = HTTPServer(server_address, HealthCheckHandler)
     httpd.serve_forever()
 
-# 2. ฟังก์ชันหลักสำหรับรับข้อความจาก Telegram และส่งไปยัง Groq API
+# 2. ฟังก์ชันจัดการข้อความ
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
+        return
+        
     user_message = update.message.text
     chat_id = update.message.chat_id
 
-    # ส่งข้อความแจ้งสถานะกำลังประมวลผล
     status_message = await context.bot.send_message(
         chat_id=chat_id, 
-        text="⚡ MettleX AI (Groq) กำลังประมวลผล..."
+        text="⚡ MettleX AI กำลังประมวลผล..."
     )
 
     try:
@@ -42,7 +43,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Content-Type": "application/json"
         }
         
-        # ใช้โมเดลมาตรฐานที่รองรับการใช้งานทั่วไปอย่างเสถียร
         payload = {
             "model": "llama-3.1-70b-versatile",
             "messages": [
@@ -71,7 +71,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             reply_text = f"❌ API Error ({response.status_code}): {response.text}"
 
-        # แก้ไขข้อความเดิมเป็นผลลัพธ์จาก AI
         await context.bot.edit_message_text(
             chat_id=chat_id,
             message_id=status_message.message_id,
@@ -82,30 +81,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.edit_message_text(
             chat_id=chat_id,
             message_id=status_message.message_id,
-            text=f"❌ เกิดข้อผิดพลาดในระบบ: {str(e)}"
+            text=f"❌ เกิดข้อผิดพลาด: {str(e)}"
         )
 
-# 3. ฟังก์ชันเริ่มต้นรันบอท
 def main():
     if not BOT_TOKEN or not GROQ_API_KEY:
-        print("❌ Error: กรุณาตั้งค่า TELEGRAM_BOT_TOKEN และ GROQ_API_KEY ใน Environment Variables ให้เรียบร้อย")
+        print("❌ Error: Missing tokens")
         return
 
-    # เริ่มต้นรัน HTTP Server ใน Background Thread เพื่อจองพอร์ตบน Render
+    # รัน HTTP Server ใน Background
     server_thread = threading.Thread(target=run_http_server, daemon=True)
     server_thread.start()
     print(f"🌐 HTTP Server started on port {PORT}")
 
-    # สร้างแอปพลิเคชัน Telegram Bot
+    # สร้าง Bot Application
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    # ลงทะเบียนฟังก์ชันรับข้อความทั่วไป
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    print("🚀 Telegram Bot with Groq is running!")
+    print("🚀 Telegram Bot is running!")
     
-    # เริ่มรันระบบ Polling เพื่อรอรับข้อความ
-    app.run_polling()
+    # สำคัญ: drop_pending_updates=True ช่วยเคลียร์คิวข้อความเก่าที่ค้างอยู่ไม่ให้เอามาตีกัน
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
