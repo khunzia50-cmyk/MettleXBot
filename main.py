@@ -81,6 +81,7 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
     print("🚀 Telegram Bot is running!")
+    # คำสั่งนี้จะช่วยเคลียร์เซสชันเก่าและบังคับให้บอทตัวใหม่รับงานเดี่ยวๆ ทันที
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
