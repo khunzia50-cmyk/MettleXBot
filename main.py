@@ -18,7 +18,6 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"Bot is active and running!")
 
     def log_message(self, format, *args):
-        # ปิดการแสดง Log HTTP ยิบย่อยเพื่อไม่ให้รกหน้าต่าง
         return
 
 def run_http_server():
@@ -26,7 +25,7 @@ def run_http_server():
     httpd = HTTPServer(server_address, HealthCheckHandler)
     httpd.serve_forever()
 
-# 2. ฟังก์ชันหลักสำหรับรับข้อความจาก Telegram และส่งต่อไปยัง Groq API
+# 2. ฟังก์ชันหลักสำหรับรับข้อความจาก Telegram และส่งไปยัง Groq API
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     chat_id = update.message.chat_id
@@ -38,13 +37,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        # ยิงคำขอไปที่ Groq API (ใช้โมเดล Llama-3.3-70b-versatile ที่ถูกต้อง)
         headers = {
             "Authorization": f"Bearer {GROQ_API_KEY}",
             "Content-Type": "application/json"
         }
+        
+        # ใช้โมเดลมาตรฐานที่รองรับการใช้งานทั่วไปอย่างเสถียร
         payload = {
-            "model": "llama-3.3-70b-versatile",
+            "model": "llama-3.1-70b-versatile",
             "messages": [
                 {
                     "role": "system",
@@ -99,7 +99,7 @@ def main():
     # สร้างแอปพลิเคชัน Telegram Bot
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # ลงทะเบียนฟังก์ชันรับข้อความทั่วไป (ยกเว้นคำสั่ง /start)
+    # ลงทะเบียนฟังก์ชันรับข้อความทั่วไป
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
     print("🚀 Telegram Bot with Groq is running!")
