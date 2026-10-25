@@ -1,29 +1,21 @@
 import os
-import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from flask import Flask, request
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, ContextTypes, MessageHandler, filters
 from groq import Groq
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+RENDER_EXTERNAL_URL = os.getenv("RENDER_EXTERNAL_URL")  # Render จะใส่ URL ให้อัตโนมัติ
 PORT = int(os.getenv("PORT", 10000))
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 
-class HealthCheckHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot is active and running!")
+# สร้าง Flask แอปสำหรับรับ Webhook และ Health Check ของ Render
+app_flask = Flask(__name__)
 
-    def log_message(self, format, *args):
-        return
-
-def run_http_server():
-    server_address = ('0.0.0.0', PORT)
-    httpd = HTTPServer(server_address, HealthCheckHandler)
-    httpd.serve_forever()
+# สร้าง Telegram Application (แบบไม่ใช้ run_polling)
+telegram_app = Application.builder().token(BOT_TOKEN).build()
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
@@ -68,21 +60,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=f"❌ เกิดข้อผิดพลาด: {str(e)}"
         )
 
-def main():
-    if not BOT_TOKEN or not GROQ_API_KEY:
-        print("❌ Error: Missing Tokens")
-        return
+telegram_app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    server_thread = threading.Thread(target=run_http_server, daemon=True)
-    server_thread.start()
-    print(f"🌐 HTTP Server started on port {PORT}")
+@app_flask.route("/", methods=["GET"])
+def health_check():
+    return "Bot is active and running!", 200
 
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+@app_flask.route(f"/{BOT_TOKEN}", methods=["POST"])
+def webhook():
+    # รับข้อมูลอัปเดตจาก Telegram ส่งเข้ามาตรงๆ
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    telegram_app.update_queue.put_nowait(update)
+    return "ok", 200
 
-    print("🚀 Telegram Bot is running!")
-    # คำสั่งนี้จะช่วยเคลียร์เซสชันเก่าและบังคับให้บอทตัวใหม่รับงานเดี่ยวๆ ทันที
-    app.run_polling(drop_pending_updates=True)
+async def setup_webhook():
+    await telegram_app.initialize()
+    if RENDER_EXTERNAL_URL:
+        webhook_url = f"{RENDER_EXTERNAL_URL}/{BOT_TOKEN}"
+        await telegram_app.bot.set_webhook(url=webhook_url)
+        print(f"🔗 Webhook set to: {webhook_url}")
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    # ตั้งค่า Webhook อัตโนมัติก่อนรันเซิร์ฟเวอร์
+    asyncio.run(setup_webhook())
+    
+    # รัน Flask บนพอร์ต 10000 เพื่อรองรับ Render Web Service
+    app_flask.run(host="0.0.0.0", port=PORT)
