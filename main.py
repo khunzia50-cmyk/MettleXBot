@@ -5,7 +5,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# 1. เว็บเซิร์ฟเวอร์จิ๋วสำหรับ Render Port Binding (ป้องกัน Render ขึ้น No open ports)
+# 1. เว็บเซิร์ฟเวอร์จิ๋วสำหรับ Render Port Binding
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -28,7 +28,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
     chat_id = update.effective_chat.id
     
-    # ส่งข้อความแจ้งผู้ใช้ว่ากำลังประมวลผล
     await context.bot.send_message(chat_id=chat_id, text="⚡ MettleX AI (Groq) กำลังประมวลผล...")
     
     try:
@@ -37,7 +36,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Content-Type": "application/json"
         }
         
-        # ตั้งค่า Prompt และใช้โมเดล Llama 3.3 70B ตัวท็อปของ Groq
         payload = {
             "model": "llama-3.3-70b-versatile",
             "messages": [
@@ -50,4 +48,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "temperature": 0.5
         }
         
-        # ยิง API ไปที่ Endpoint
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            reply_text = data.get("choices", [{}])[0].get("message", {}).get("content", str(data))
+        else:
+            reply_text = f"❌ API Error ({response.status_code}): {response.text}"
+            
+    except Exception as e:
+        reply_text = f"❌ เกิดข้อผิดพลาด: {str(e)}"
+        
+    await context.bot.send_message(chat_id=chat_id, text=reply_text)
+
+if __name__ == '__main__':
+    app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
+    print("🚀 Telegram Bot with Groq is running!")
+    app.run_polling()
