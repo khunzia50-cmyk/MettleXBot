@@ -9,7 +9,6 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 PORT = int(os.getenv("PORT", 10000))
 
-# เริ่มต้นใช้งาน Groq Client อย่างเป็นทางการ
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -39,9 +38,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        # ใช้ SDK ของ Groq ร่วมกับโมเดลมาตรฐาน llama-3.3-70b-versatile[span_2](start_span)[span_2](end_span)
         chat_completion = groq_client.chat.completions.create(
-            model="llama-3.3-70b-versatile",[span_3](start_span)[span_3](end_span)
+            model="llama-3.3-70b-versatile",
             messages=[
                 {
                     "role": "system",
@@ -82,7 +80,7 @@ def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    print("🚀 Telegram Bot with Official Groq SDK is running!")
+    print("🚀 Telegram Bot is running!")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
