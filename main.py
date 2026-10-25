@@ -34,9 +34,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Authorization": f"Bearer {OPENCODE_API_KEY}",
             "Content-Type": "application/json"
         }
-        # ปรับ Payload และ Endpoint ให้ตรงกับ OpenAI-compatible API ของ Opencode ตามหน้า Console
+        # เปลี่ยนเป็นโมเดล OpenCode Go ที่ได้รับสิทธิ์ใช้งาน
         payload = {
-            "model": "kimi-k2.6",
+            "model": "deepseek-v4.1-flash",
             "messages": [{"role": "user", "content": user_text}]
         }
         
