@@ -5,7 +5,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
-# 1. สร้างเว็บเซิร์ฟเวอร์จิ๋วเพื่อให้ Render ตรวจจับ Port ได้ (แก้ปัญหา No open ports detected)
+# 1. เว็บเซิร์ฟเวอร์จิ๋วสำหรับ Render Port Binding
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -17,7 +17,6 @@ def run_http_server():
     server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
     server.serve_forever()
 
-# รันเว็บเซิร์ฟเวอร์ในเบื้องหลัง (Background Thread)
 threading.Thread(target=run_http_server, daemon=True).start()
 
 # 2. โค้ดบอท Telegram และเชื่อมต่อ Opencode AI
@@ -35,11 +34,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Authorization": f"Bearer {OPENCODE_API_KEY}",
             "Content-Type": "application/json"
         }
+        # ปรับ Payload และ Endpoint ให้ตรงกับ OpenAI-compatible API ของ Opencode ตามหน้า Console
         payload = {
+            "model": "kimi-k2.6",
             "messages": [{"role": "user", "content": user_text}]
         }
         
-        response = requests.post("https://api.opencode.ai/v1/chat/completions", headers=headers, json=payload, timeout=30)
+        response = requests.post(
+            "https://opencode.ai/inference/openai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
         
         if response.status_code == 200:
             data = response.json()
