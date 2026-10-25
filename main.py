@@ -1,13 +1,16 @@
 import os
 import threading
-import requests
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+from groq import Groq
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 PORT = int(os.getenv("PORT", 10000))
+
+# เริ่มต้นใช้งาน Groq Client อย่างเป็นทางการ
+groq_client = Groq(api_key=GROQ_API_KEY)
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -36,38 +39,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
-        headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}".strip(),
-            "Content-Type": "application/json"
-        }
-        
-        payload = {
-            "model": "llama-3.1-8b-instant",
-            "messages": [
+        # ใช้ SDK ของ Groq ร่วมกับโมเดลมาตรฐาน llama-3.3-70b-versatile[span_2](start_span)[span_2](end_span)
+        chat_completion = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",[span_3](start_span)[span_3](end_span)
+            messages=[
                 {
                     "role": "system",
-                    "content": "You are a professional video scriptwriter assistant."
+                    "content": "คุณคือผู้ช่วยมืออาชีพด้านการเขียนสคริปต์ตัดต่อวิดีโอ ช่วยออกแบบโครงสร้าง บทพูด และคำแนะนำในการตัดต่ออย่างสร้างสรรค์"
                 },
                 {
                     "role": "user",
                     "content": user_message
                 }
             ],
-            "temperature": 0.7
-        }
-
-        response = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            json=payload,
-            headers=headers,
-            timeout=30
+            temperature=0.7
         )
 
-        if response.status_code == 200:
-            res_data = response.json()
-            reply_text = res_data["choices"][0]["message"]["content"]
-        else:
-            reply_text = f"❌ API Error ({response.status_code}): {response.text}"
+        reply_text = chat_completion.choices[0].message.content
 
         await context.bot.edit_message_text(
             chat_id=chat_id,
@@ -94,7 +82,7 @@ def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    print("🚀 Telegram Bot is running!")
+    print("🚀 Telegram Bot with Official Groq SDK is running!")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
