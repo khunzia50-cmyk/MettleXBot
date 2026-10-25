@@ -5,8 +5,12 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
+# ใส่ Telegram Bot Token ปกติ
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# เอา Key ของ Groq มาใส่ตรงนี้แบบตรงๆ เลย เพื่อทดสอบว่ามันอ่านค่าผ่านไหม
+HARDCODED_GROQ_KEY = "ใส่_API_Key_ตรงนี้_โดยตรง"
+
 PORT = int(os.getenv("PORT", 10000))
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
@@ -36,12 +40,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     try:
+        # ใช้คีย์ตรงๆ ที่เราใส่ไว้
         headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Authorization": f"Bearer {HARDCODED_GROQ_KEY}",
             "Content-Type": "application/json"
         }
         
-        # ใช้โมเดล llama-3.1-8b-instant ที่เสถียรและเปิดใช้งานอยู่จริงแน่นอน
         payload = {
             "model": "llama-3.1-8b-instant",
             "messages": [
@@ -84,8 +88,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 def main():
-    if not BOT_TOKEN or not GROQ_API_KEY:
-        print("❌ Error: Missing tokens")
+    if not BOT_TOKEN:
+        print("❌ Error: Missing Telegram Token")
         return
 
     server_thread = threading.Thread(target=run_http_server, daemon=True)
