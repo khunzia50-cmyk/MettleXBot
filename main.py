@@ -9,7 +9,6 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 PORT = int(os.getenv("PORT", 10000))
 
-# 1. HTTP Server สำหรับ Health Check บน Render
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -24,7 +23,6 @@ def run_http_server():
     httpd = HTTPServer(server_address, HealthCheckHandler)
     httpd.serve_forever()
 
-# 2. ฟังก์ชันจัดการข้อความ
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
@@ -34,7 +32,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     status_message = await context.bot.send_message(
         chat_id=chat_id, 
-        text="⚡ MettleX AI (DeepSeek R1) กำลังประมวลผลเชิงลึก..."
+        text="⚡ MettleX AI กำลังประมวลผล..."
     )
 
     try:
@@ -43,13 +41,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Content-Type": "application/json"
         }
         
-        # ใช้โมเดล DeepSeek R1 Distill Llama 70B ตามที่เลือก
+        # ใช้โมเดล llama-3.1-8b-instant ที่เสถียรและเปิดใช้งานอยู่จริงแน่นอน
         payload = {
-            "model": "deepseek-r1-distill-llama-70b",
+            "model": "llama-3.1-8b-instant",
             "messages": [
                 {
                     "role": "system",
-                    "content": "คุณคือผู้ช่วยมืออาชีพด้านการเขียนสคริปต์ตัดต่อวิดีโอ ช่วยออกแบบโครงสร้าง บทพูด และคำแนะนำในการตัดต่ออย่างสร้างสรรค์และมีเหตุมีผล"
+                    "content": "คุณคือผู้ช่วยมืออาชีพด้านการเขียนสคริปต์ตัดต่อวิดีโอ ช่วยออกแบบโครงสร้าง บทพูด และคำแนะนำในการตัดต่ออย่างสร้างสรรค์"
                 },
                 {
                     "role": "user",
@@ -63,7 +61,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "https://api.groq.com/openai/v1/chat/completions",
             json=payload,
             headers=headers,
-            timeout=45
+            timeout=30
         )
 
         if response.status_code == 200:
@@ -90,18 +88,14 @@ def main():
         print("❌ Error: Missing tokens")
         return
 
-    # รัน HTTP Server ใน Background
     server_thread = threading.Thread(target=run_http_server, daemon=True)
     server_thread.start()
     print(f"🌐 HTTP Server started on port {PORT}")
 
-    # สร้าง Bot Application
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    print("🚀 Telegram Bot with DeepSeek R1 is running!")
-    
-    # เริ่มรัน Polling พร้อมเคลียร์เควสต์ค้าง
+    print("🚀 Telegram Bot is running!")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
