@@ -34,7 +34,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     status_message = await context.bot.send_message(
         chat_id=chat_id, 
-        text="⚡ MettleX AI กำลังประมวลผล..."
+        text="⚡ MettleX AI (DeepSeek R1) กำลังประมวลผลเชิงลึก..."
     )
 
     try:
@@ -43,12 +43,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Content-Type": "application/json"
         }
         
+        # ใช้โมเดล DeepSeek R1 Distill Llama 70B ตามที่เลือก
         payload = {
-            "model": "llama-3.1-70b-versatile",
+            "model": "deepseek-r1-distill-llama-70b",
             "messages": [
                 {
                     "role": "system",
-                    "content": "คุณคือผู้ช่วยมืออาชีพด้านการเขียนสคริปต์ตัดต่อวิดีโอ ช่วยออกแบบโครงสร้าง บทพูด และคำแนะนำในการตัดต่ออย่างสร้างสรรค์"
+                    "content": "คุณคือผู้ช่วยมืออาชีพด้านการเขียนสคริปต์ตัดต่อวิดีโอ ช่วยออกแบบโครงสร้าง บทพูด และคำแนะนำในการตัดต่ออย่างสร้างสรรค์และมีเหตุมีผล"
                 },
                 {
                     "role": "user",
@@ -62,7 +63,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "https://api.groq.com/openai/v1/chat/completions",
             json=payload,
             headers=headers,
-            timeout=30
+            timeout=45
         )
 
         if response.status_code == 200:
@@ -98,9 +99,9 @@ def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    print("🚀 Telegram Bot is running!")
+    print("🚀 Telegram Bot with DeepSeek R1 is running!")
     
-    # สำคัญ: drop_pending_updates=True ช่วยเคลียร์คิวข้อความเก่าที่ค้างอยู่ไม่ให้เอามาตีกัน
+    # เริ่มรัน Polling พร้อมเคลียร์เควสต์ค้าง
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
